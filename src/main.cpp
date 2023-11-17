@@ -165,8 +165,8 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    int ox = static_cast<int>(SDL_GetTicks() * 0.1f);
-    int oy = static_cast<int>(SDL_GetTicks() * 0.1f);
+    float ox = SDL_GetTicks() * 0.1f;
+    float oy = SDL_GetTicks() * 0.1f;
     std::vector<glm::vec3> vertices;
     std::vector<glm::vec3> normals;
         std::vector<glm::vec3> texCoords;
@@ -177,6 +177,21 @@ int main(int argc, char* argv[]) {
 
     if (!loadOBJ(filePath, vertices, normals, texCoords,  faces)) {
             std::cout << "Error: Could not load OBJ file." << std::endl;
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
+
+    std::string spaceshipFilePath = "src/sphere.obj";
+    std::vector<glm::vec3> spaceshipVertices;
+    std::vector<glm::vec3> spaceshipNormals;
+    std::vector<glm::vec3> spaceshipTexCoords;
+    std::vector<Face> spaceshipFaces;
+    std::vector<glm::vec3> vertexBufferSpace;
+
+    if (!loadOBJ(spaceshipFilePath, spaceshipVertices, spaceshipNormals, spaceshipTexCoords, spaceshipFaces)) {
+        std::cout << "Error: Could not load spaceship OBJ file." << std::endl;
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
         SDL_Quit();
@@ -203,6 +218,26 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    for (const auto& faceSpace : spaceshipFaces)
+    {
+        for (int i = 0; i < 3; ++i)
+        {
+            // Get the vertex position
+            glm::vec3 vertexPositionSpace = vertices[faceSpace.vertexIndices[i]];
+
+            // Get the normal for the current vertex
+            glm::vec3 vertexNormalSpace = normals[faceSpace.normalIndices[i]];
+
+            // Get the texture for the current vertex
+            glm::vec3 vertexTextureSpace = texCoords[faceSpace.texIndices[i]];
+
+            // Add the vertex position and normal to the vertex array
+            vertexBufferSpace.push_back(vertexPositionSpace);
+            vertexBufferSpace.push_back(vertexNormalSpace);
+            vertexBufferSpace.push_back(vertexTextureSpace);
+        }
+    }
+
     Uniforms uniforms;
 
     glm::mat4 model = glm::mat4(1);
@@ -218,10 +253,7 @@ int main(int argc, char* argv[]) {
     glm::mat4 scale = glm::scale(glm::mat4(1.0f), scaleFactor);
 
     // Initialize a Camera object
-    Camera camera;
-    camera.cameraPosition = glm::vec3(0.0f, 0.0f, 20.0f);
-    camera.targetPosition = glm::vec3(0.0f, 0.0f, 0.0f);
-    camera.upVector = glm::vec3(0.0f, 1.0f, 0.0f);
+    Camera camera(glm::vec3(0.0f, 0.0f, 20.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
     // Projection matrix
     float fovRadians = glm::radians(45.0f);
@@ -245,7 +277,10 @@ int main(int argc, char* argv[]) {
             titleStream << "FPS: " << 1000.0 / frameTime;  // Milliseconds to seconds
             SDL_SetWindowTitle(window, titleStream.str().c_str()); // Use the global 'window' pointer
         }
-
+        glm::vec3 spaceshipPosition;
+        float distanceAhead = 1.0f;
+        glm::mat4 SpaceModel = glm::mat4(1.0f);
+        glm::mat4 rotate;
             SDL_Event event;
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT) {
@@ -254,20 +289,28 @@ int main(int argc, char* argv[]) {
         if (event.type == SDL_KEYDOWN) {
             switch (event.key.keysym.sym) {
                 case SDLK_LEFT:
-                    camera.cameraPosition.x += -speed;
-                    ox -= 10;
+                    camera.rotateLeft(5.0f); // Mueve la cámara hacia la izquierda
+                    oy = oy + -0.5;
+
+                    // Aplica una rotación a la nave espacial cuando se presiona la flecha izquierda
+                    rotate = glm::rotate(glm::mat4(1.0f), glm::radians(5.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+                    SpaceModel = rotate * SpaceModel;
                     break;
                 case SDLK_RIGHT:
-                    camera.cameraPosition.x += speed;
-                    ox += 10;
+                    camera.rotateRight(5.0f); // Mueve la cámara hacia la derecha
+                    oy = oy + 0.5;
+
+                    // Aplica una rotación a la nave espacial cuando se presiona la flecha derecha
+                    rotate = glm::rotate(glm::mat4(1.0f), glm::radians(-5.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+                    SpaceModel = rotate * SpaceModel;
                     break;
                 case SDLK_UP:
-                    camera.cameraPosition.y += -speed;
-                    oy -= 10;
+                    camera.moveForward(0.1f); // Mueve la cámara hacia adelante
+                    //ox = ox + 1;
                     break;
                 case SDLK_DOWN:
-                    camera.cameraPosition.y += speed;
-                    oy += 10;
+                    camera.moveBackward(0.1f); // Mueve la cámara hacia atrás
+                    //ox = ox - 1;
                     break;
                 }
             }
@@ -294,7 +337,7 @@ int main(int argc, char* argv[]) {
         // Render the Sun (center)
         glm::mat4 sunModel = glm::mat4(1.0f);
         sunModel = glm::scale(sunModel, glm::vec3(3.0f));
-        
+
         Uniforms sunUniforms = uniforms;
         sunUniforms.model = sunModel;
         currentFragmentShaderType = FragmentShaderType::Sun;
@@ -317,6 +360,24 @@ int main(int argc, char* argv[]) {
         currentFragmentShaderType = FragmentShaderType::Heat;
         render(vertexBufferObject, heatUniforms);
 
+        glm::vec3 front = glm::normalize(camera.targetPosition - camera.cameraPosition);
+
+        // Calcula la nueva posición de la nave espacial (un poco delante de la cámara)
+        spaceshipPosition = camera.cameraPosition + front * distanceAhead;
+        spaceshipPosition.y = spaceshipPosition.y + -0.35f;
+
+        // Calcula la matriz de modelo para la nave espacial
+        float r = 0.0f;
+        SpaceModel = glm::translate(SpaceModel, spaceshipPosition);
+        //float spaceshipRotationAngle = glm::radians(r);
+        //SpaceModel = glm::rotate(glm::mat4(1.0f), spaceshipRotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+        SpaceModel = glm::scale(SpaceModel, glm::vec3(0.25f));
+
+        // Renderiza la nave espacial
+        Uniforms spaceshipUniforms = uniforms;
+        spaceshipUniforms.model = SpaceModel;
+        currentFragmentShaderType = FragmentShaderType::Kirby;
+        render(vertexBufferSpace, spaceshipUniforms);
 
         // Render the Marte
         float marsOrbitRadius = 6.0f;

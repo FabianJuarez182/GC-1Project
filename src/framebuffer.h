@@ -21,4 +21,4 @@ extern std::array<std::mutex, SCREEN_WIDTH * SCREEN_HEIGHT> mutexes;
 void point(Fragment f);
 void clearFramebuffer();
 void renderBuffer(SDL_Renderer* renderer);
-void paintSpaceFramebuffer(int ox, int oy);
+void paintSpaceFramebuffer(float ox, float oy);

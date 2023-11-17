@@ -9,6 +9,7 @@
 enum class FragmentShaderType {
     Stripes,
     Urano,
+    Kirby,
     Mars,
     Earth,
     Heat,
@@ -265,7 +266,7 @@ Fragment fragmentShaderHeat(Fragment& fragment) {
     // Interpola entre los colores de "calor" (de frío a caliente) en función del valor de "calor"
     glm::vec3 interpolatedColor = glm::mix(warmColor, hotColor, heatValue);
 
-    // Aplica la intensidad de iluminación (puedes modificar esto según tus necesidades)
+    // Aplica la intensidad de iluminación
     interpolatedColor = interpolatedColor * fragment.intensity;
 
     // Convierte el color a tu clase Color si es necesario
@@ -312,12 +313,40 @@ Fragment fragmentShaderSun(Fragment& fragment) {
     return fragment;
 }
 
+Fragment fragmentShaderKirby(Fragment& fragment) {
+    // Define el color base para la bola de billar (rojo intenso)
+    glm::vec3 kirbyColor = glm::vec3(1.0f, 0.5f, 0.8f); // Rosado característico de Kirby
+
+    // Combina el color difuso y especular
+    glm::vec3 finalColor = (kirbyColor * fragment.intensity);
+
+    // Establece el color del fragmento
+    fragment.color = Color(finalColor.r, finalColor.g, finalColor.b);
+
+   // Añade un número encima de la bola (en blanco)
+    if (fragment.originalPos.y > 0.0f) {
+        // Ajusta la posición del número
+        float numberPosY = fragment.originalPos.y + 0.15f; // Ajusta la posición vertical del número
+        float numberSize = 0.03f; // Ajusta el tamaño del número
+
+        // Verifica si el fragmento está en una posición donde debería colocarse el número
+        if (fragment.originalPos.y > 0.2f && fragment.originalPos.y < 0.6f) {
+            // Añade el número en blanco
+            fragment.color = Color(0.8f, 0.0f, 0.0f); // rojo intenso
+        }
+    }
+
+    return fragment;
+}
+
 Fragment fragmentShader(Fragment& fragment, FragmentShaderType shaderType) {
     switch (shaderType) {
         case FragmentShaderType::Stripes:
             return fragmentShaderJupiter(fragment);
         case FragmentShaderType::Urano:
             return fragmentShaderUrano(fragment);
+        case FragmentShaderType::Kirby:
+            return fragmentShaderKirby(fragment);
         case FragmentShaderType::Mars:
             return fragmentShaderMars(fragment);
         case FragmentShaderType::Earth:

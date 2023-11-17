@@ -56,7 +56,7 @@ void renderBuffer(SDL_Renderer* renderer) {
     SDL_RenderPresent(renderer);
 }
 
-void paintSpaceFramebuffer(int ox, int oy) {
+void paintSpaceFramebuffer(float ox, float oy) {
     for (int y = 0; y < SCREEN_HEIGHT; y++) {
         for (int x = 0; x < SCREEN_WIDTH; x++) {
             FastNoiseLite noiseGenerator;
